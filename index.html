@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>朝凤 Phoenix Swarm · 数字孪生演示</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2307101c'/%3E%3Cpath d='M16 6c1.8 3.6 4 6.4 7 8.4-3 .9-5.2 2.3-7 4.4-1.8-2.1-4-3.5-7-4.4 3-2 5.2-4.8 7-8.4z' fill='%2338e1ff'/%3E%3Cpath d='M16 17.4c1.4 2 3.2 3.4 5.6 4.1-2.4.5-4.2 1.7-5.6 3.5-1.4-1.8-3.2-3-5.6-3.5 2.4-.7 4.2-2.1 5.6-4.1z' fill='%23ffb35c'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg0:#04090f; --bg1:#07121f; --bg2:#0a1a2c; --panel:#0c1d31;
+  --line:rgba(56,225,255,.16); --line2:rgba(56,225,255,.32);
+  --cyan:#38e1ff; --cyan-dim:#7fd9ec; --gold:#ffb35c; --gold-dim:#f2c98f;
+  --text:#dcebf5; --dim:#8fb0c6; --faint:#5b7b92;
+  --mono:'Cascadia Code','JetBrains Mono','Consolas',monospace;
+  --sans:'Noto Sans SC','Microsoft YaHei UI','PingFang SC',system-ui,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg0);color:var(--text);font-family:var(--sans);line-height:1.65;overflow-x:hidden}
+::selection{background:rgba(56,225,255,.25)}
+a{color:var(--cyan);text-decoration:none}
+/* ===== 背景网格 + 雷达氛围 ===== */
+.bg-grid{position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    linear-gradient(rgba(56,225,255,.045) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(56,225,255,.045) 1px,transparent 1px);
+  background-size:44px 44px;
+  mask-image:radial-gradient(ellipse 90% 70% at 50% 0%,#000 30%,transparent 75%);
+  -webkit-mask-image:radial-gradient(ellipse 90% 70% at 50% 0%,#000 30%,transparent 75%);
+}
+.bg-glow{position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 60% 42% at 50% -6%,rgba(56,225,255,.13),transparent 62%),
+             radial-gradient(ellipse 42% 34% at 88% 108%,rgba(255,179,92,.07),transparent 60%);
+}
+main{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 28px}
+/* ===== 顶栏 ===== */
+header{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);
+  background:linear-gradient(rgba(4,9,15,.92),rgba(4,9,15,.78));
+  border-bottom:1px solid var(--line)}
+.nav{max-width:1180px;margin:0 auto;padding:14px 28px;display:flex;align-items:center;gap:16px}
+.brand{display:flex;align-items:center;gap:11px;font-weight:700;letter-spacing:.04em}
+.brand svg{flex:none}
+.brand .zh{font-size:18px;color:#fff}
+.brand .en{font-size:12px;color:var(--dim);letter-spacing:.18em;margin-top:1px}
+.nav-links{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+.nav-links a{color:var(--dim);font-size:13.5px;padding:7px 12px;border-radius:6px;transition:color .18s,background .18s}
+.nav-links a:hover{color:var(--cyan);background:rgba(56,225,255,.07)}
+.nav-links a.on{color:var(--cyan);background:rgba(56,225,255,.1)}
+/* ===== Hero ===== */
+.hero{padding:88px 0 58px;text-align:center;position:relative}
+.kicker{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:12.5px;
+  color:var(--cyan);letter-spacing:.22em;border:1px solid var(--line2);border-radius:999px;
+  padding:7px 16px;background:rgba(56,225,255,.05)}
+.kicker::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--cyan);
+  box-shadow:0 0 12px var(--cyan);animation:pulse 2.2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.hero h1{font-size:clamp(34px,5.4vw,58px);font-weight:900;margin:26px 0 8px;letter-spacing:.02em;
+  background:linear-gradient(180deg,#ffffff 10%,#bcd9ec 70%,#7fa6c4 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.hero .sub{font-size:clamp(16px,2vw,21px);color:var(--cyan-dim);font-weight:600;letter-spacing:.06em}
+.hero .lead{max-width:780px;margin:22px auto 0;color:var(--dim);font-size:15.5px}
+.hero .lead b{color:var(--text);font-weight:600}
+/* 验证数据带 */
+.stats{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin:38px auto 0;max-width:900px}
+.stat{flex:1 1 190px;max-width:250px;border:1px solid var(--line);border-radius:12px;
+  background:linear-gradient(160deg,rgba(10,26,44,.75),rgba(7,18,31,.6));padding:18px 16px;text-align:left;
+  position:relative;overflow:hidden}
+.stat::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--cyan);opacity:.7}
+.stat .num{font-family:var(--mono);font-size:26px;font-weight:700;color:#fff;letter-spacing:.01em}
+.stat .num em{font-style:normal;color:var(--cyan);font-size:15px}
+.stat .lbl{font-size:12.5px;color:var(--dim);margin-top:5px;letter-spacing:.03em}
+/* ===== 区块通用 ===== */
+section{padding:64px 0 10px}
+.sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:26px}
+.sec-index{font-family:var(--mono);color:var(--gold);font-size:14px;letter-spacing:.14em}
+.sec-title{font-size:clamp(22px,3vw,30px);font-weight:800;color:#fff;letter-spacing:.03em}
+.sec-desc{color:var(--dim);font-size:14px;margin-left:auto;max-width:380px;text-align:right}
+/* ===== 演示区 ===== */
+.demo-shell{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--bg1);
+  box-shadow:0 30px 80px rgba(0,0,0,.45)}
+.demo-top{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid var(--line);
+  background:rgba(4,9,15,.5)}
+.demo-dot{width:10px;height:10px;border-radius:50%;background:#2a4560}
+.demo-dot:first-child{background:var(--gold)}
+.demo-dot:nth-child(2){background:var(--cyan)}
+.demo-title{font-family:var(--mono);font-size:12px;color:var(--faint);letter-spacing:.12em;margin-left:8px}
+.demo-stage{position:relative;background:#000}
+.demo-stage video{display:block;width:100%;aspect-ratio:16/9;object-fit:contain;background:#02060b}
+.demo-stage .corner{position:absolute;width:26px;height:26px;border:1.5px solid var(--line2);pointer-events:none}
+.demo-stage .corner.tl{top:14px;left:14px;border-right:none;border-bottom:none}
+.demo-stage .corner.tr{top:14px;right:14px;border-left:none;border-bottom:none}
+.demo-stage .corner.bl{bottom:14px;left:14px;border-right:none;border-top:none}
+.demo-stage .corner.br{bottom:14px;right:14px;border-left:none;border-top:none}
+.scene-tag{position:absolute;left:16px;bottom:14px;font-family:var(--mono);font-size:12px;color:var(--cyan);
+  letter-spacing:.16em;background:rgba(4,9,15,.72);border:1px solid var(--line2);border-radius:6px;padding:5px 12px}
+.cam-tag{position:absolute;right:16px;bottom:14px;font-family:var(--mono);font-size:11.5px;color:var(--gold-dim);
+  letter-spacing:.1em;background:rgba(4,9,15,.72);border:1px solid rgba(255,179,92,.4);border-radius:6px;padding:5px 12px}
+.demo-ctrl{display:flex;align-items:center;gap:10px;padding:14px 18px;border-top:1px solid var(--line);flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line2);background:rgba(56,225,255,.07);
+  color:var(--cyan);font-family:var(--sans);font-size:14px;padding:9px 18px;border-radius:8px;cursor:pointer;
+  transition:background .16s,transform .1s;min-height:44px}
+.btn:hover{background:rgba(56,225,255,.16)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--cyan);color:#031019;font-weight:700;border-color:var(--cyan)}
+.btn.primary:hover{background:#6fe9ff}
+.scene-nav{display:flex;gap:6px;flex-wrap:wrap;margin:20px 0 0}
+.scene-chip{border:1px solid var(--line);background:rgba(10,26,44,.5);color:var(--dim);border-radius:8px;
+  padding:8px 14px;font-size:13.5px;cursor:pointer;transition:all .16s;min-height:44px;display:flex;align-items:center;gap:7px}
+.scene-chip .n{font-family:var(--mono);font-size:12px;color:var(--faint)}
+.scene-chip:hover{border-color:var(--line2);color:var(--text)}
+.scene-chip.on{border-color:var(--cyan);color:var(--cyan);background:rgba(56,225,255,.1);box-shadow:0 0 18px rgba(56,225,255,.14)}
+.scene-desc{margin-top:14px;display:grid;grid-template-columns:1.4fr 1fr;gap:16px}
+.scene-text{border-left:2px solid var(--cyan);padding:4px 0 4px 16px;min-height:64px}
+.scene-text .t-title{font-size:17px;font-weight:700;color:#fff;letter-spacing:.02em}
+.scene-text .t-sub{color:var(--dim);font-size:14px;margin-top:4px}
+.scene-meta{font-family:var(--mono);font-size:12px;color:var(--faint);display:flex;flex-direction:column;gap:6px;
+  border:1px dashed var(--line);border-radius:10px;padding:12px 16px;justify-content:center}
+.scene-meta b{color:var(--cyan);font-weight:600}
+/* ===== 核心能力 ===== */
+.cap-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.cap{border:1px solid var(--line);border-radius:14px;padding:22px 22px 20px;position:relative;overflow:hidden;
+  background:linear-gradient(165deg,rgba(10,26,44,.7),rgba(7,18,31,.55));transition:border-color .2s,transform .2s}
+.cap:hover{border-color:var(--line2);transform:translateY(-2px)}
+.cap .ic{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  background:rgba(56,225,255,.09);border:1px solid var(--line2);margin-bottom:14px;color:var(--cyan)}
+.cap h3{font-size:16.5px;font-weight:700;color:#fff;letter-spacing:.02em}
+.cap .tag{display:inline-block;font-family:var(--mono);font-size:10.5px;color:var(--gold);letter-spacing:.1em;
+  border:1px solid rgba(255,179,92,.35);border-radius:5px;padding:2px 8px;margin:8px 0 10px}
+.cap p{color:var(--dim);font-size:13.5px}
+/* ===== 架构 ===== */
+.arch{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:6px}
+.arch-layer{border:1px solid var(--line);border-radius:12px;padding:20px 18px;background:rgba(7,18,31,.5)}
+.arch-layer .lvl{font-family:var(--mono);font-size:11px;color:var(--faint);letter-spacing:.16em}
+.arch-layer h3{font-size:15.5px;color:#fff;margin:6px 0 10px;font-weight:700}
+.arch-layer ul{list-style:none;display:flex;flex-direction:column;gap:7px}
+.arch-layer li{font-size:13px;color:var(--dim);padding-left:15px;position:relative}
+.arch-layer li::before{content:'';position:absolute;left:0;top:8px;width:7px;height:7px;border-radius:50%;
+  background:var(--cyan);opacity:.6}
+.arch-flow{display:flex;align-items:center;justify-content:center;gap:10px;margin:14px 0 0;
+  font-family:var(--mono);font-size:12px;color:var(--gold);letter-spacing:.2em}
+.arch-flow span{color:var(--faint)}
+/* ===== 数据区 ===== */
+.data-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.data-cell{border:1px solid var(--line);border-radius:12px;padding:18px;text-align:left;background:rgba(7,18,31,.45)}
+.data-cell .k{font-size:12.5px;color:var(--dim);letter-spacing:.04em}
+.data-cell .v{font-family:var(--mono);font-size:21px;font-weight:700;color:var(--cyan);margin-top:8px;letter-spacing:.02em}
+.data-cell .note{font-size:11.5px;color:var(--faint);margin-top:5px}
+/* ===== 页脚 ===== */
+footer{margin-top:70px;border-top:1px solid var(--line);padding:34px 0 44px;text-align:center;
+  font-family:var(--mono);font-size:12px;color:var(--faint);letter-spacing:.08em}
+footer .foot-zh{font-family:var(--sans);color:var(--dim);letter-spacing:.06em;margin-top:8px;font-size:13px}
+/* ===== 响应式 ===== */
+@media (max-width:860px){
+  main{padding:0 16px}
+  .nav-links{display:none}
+  .hero{padding:64px 0 44px}
+  .cap-grid{grid-template-columns:1fr}
+  .arch{grid-template-columns:1fr}
+  .data-grid{grid-template-columns:repeat(2,1fr)}
+  .scene-desc{grid-template-columns:1fr}
+  .sec-desc{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+<header>
+  <div class="nav">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="7" fill="#0c1d31" stroke="rgba(56,225,255,.35)"/>
+        <path d="M16 5c1.9 3.8 4.2 6.6 7.4 8.7-3.2 1-5.5 2.4-7.4 4.6-1.9-2.2-4.2-3.6-7.4-4.6 3.2-2.1 5.5-4.9 7.4-8.7z" fill="#38e1ff"/>
+        <path d="M16 18.3c1.4 2 3.2 3.4 5.7 4.2-2.5.5-4.3 1.7-5.7 3.5-1.4-1.8-3.2-3-5.7-3.5 2.5-.8 4.3-2.2 5.7-4.2z" fill="#ffb35c"/>
+        <circle cx="16" cy="16" r="2.2" fill="#fff"/>
+      </svg>
+      <div>
+        <div class="zh">朝凤</div>
+        <div class="en">PHOENIX SWARM</div>
+      </div>
+    </div>
+    <nav class="nav-links" aria-label="页面导航">
+      <a href="#demo">数字孪生演示</a>
+      <a href="#cap">核心能力</a>
+      <a href="#arch">系统架构</a>
+      <a href="#data">验证数据</a>
+    </nav>
+  </div>
+</header>
+<main>
+
+<!-- ===== Hero ===== -->
+<section class="hero">
+  <span class="kicker">LOW-ALTITUDE · PERCEPTION-DECISION AGENT</span>
+  <h1>朝凤 Phoenix Swarm</h1>
+  <div class="sub">无人机群的“大脑与神经元”</div>
+  <p class="lead">面向低空经济的 <b>感知-决策一体化多无人机 AI 智能体系统</b>。不造飞机，只做无人机群的“大脑与神经”——向上对接空天地多源时空数据，向下统一接入多品牌机型，中间由具备自主决策能力的时空智能体完成环境感知、航线规划、3D 智能避障与多机协同。</p>
+  <div class="stats">
+    <div class="stat"><div class="num">6<em>/6</em></div><div class="lbl">低空核心场景 · 数字孪生全流程验证</div></div>
+    <div class="stat"><div class="num">0</div><div class="lbl">单机避障碰撞（仿真全场景通过）</div></div>
+    <div class="stat"><div class="num">100<em>%</em></div><div class="lbl">多机协同任务分配实时完成</div></div>
+    <div class="stat"><div class="num">3D</div><div class="lbl">智能避障 · 垂直越顶优先 + 水平绕行</div></div>
+  </div>
+</section>
+
+<!-- ===== 数字孪生演示 ===== -->
+<section id="demo">
+  <div class="sec-head">
+    <span class="sec-index">01 / 场景演示</span>
+    <h2 class="sec-title">数字孪生 · 六大低空场景</h2>
+    <p class="sec-desc">同一时空底座上生长：AnyDrone 统一接入 / 3D 智能避障 / 蜂群多机协同 / 全链路兜底 / 机载 AI 接管 / 巡检报告自动生成</p>
+  </div>
+  <div class="demo-shell">
+    <div class="demo-top">
+      <span class="demo-dot"></span><span class="demo-dot"></span><span class="demo-dot"></span>
+      <span class="demo-title">PHOENIX_SWARM://DT-SIM // SCENE-NODE-01</span>
+    </div>
+    <div class="demo-stage">
+      <video id="sceneVideo" src="assets/01_farm.mp4" autoplay muted loop playsinline></video>
+      <span class="corner tl"></span><span class="corner tr"></span>
+      <span class="corner bl"></span><span class="corner br"></span>
+      <span class="scene-tag" id="sceneTag">SCENE 01 · AGRICULTURE</span>
+      <span class="cam-tag" id="camTag">CAM: 多角度环绕 · 近远联动</span>
+    </div>
+    <div class="demo-ctrl">
+      <button class="btn primary" id="playBtn" type="button" aria-label="播放或暂停演示">暂停演示</button>
+      <button class="btn" id="replayBtn" type="button" aria-label="重新播放当前场景">重播场景</button>
+      <button class="btn" id="muteBtn" type="button" aria-label="切换声音">声音：关</button>
+      <span style="flex:1"></span>
+      <span style="font-family:var(--mono);font-size:12px;color:var(--faint)" id="timerLabel">00:00</span>
+    </div>
+  </div>
+  <div class="scene-nav" id="sceneNav" role="tablist" aria-label="六大场景切换">
+    <button class="scene-chip on" data-idx="0" role="tab"><span class="n">01</span>农业植保</button>
+    <button class="scene-chip" data-idx="1" role="tab"><span class="n">02</span>河道巡检</button>
+    <button class="scene-chip" data-idx="2" role="tab"><span class="n">03</span>地形测绘</button>
+    <button class="scene-chip" data-idx="3" role="tab"><span class="n">04</span>乡村物流</button>
+    <button class="scene-chip" data-idx="4" role="tab"><span class="n">05</span>水域搜救</button>
+    <button class="scene-chip" data-idx="5" role="tab"><span class="n">06</span>消防灭火</button>
+  </div>
+  <div class="scene-desc">
+    <div class="scene-text">
+      <div class="t-title" id="sceneTitle">农业植保 · 多机分区并行</div>
+      <div class="t-sub" id="sceneSub">大面积农田，多机分区并行作业，农事作业效率翻番；单机覆盖无遗漏，作业全程可视化。</div>
+    </div>
+    <div class="scene-meta" id="sceneMeta">
+      <span>协同模式：<b>分区并行</b></span>
+      <span>效率指标：<b>多机并作 · 效率翻番</b></span>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 核心能力 ===== -->
+<section id="cap">
+  <div class="sec-head">
+    <span class="sec-index">02 / 核心能力</span>
+    <h2 class="sec-title">四大能力 · 从“会飞”到“会思考”</h2>
+    <p class="sec-desc">确定性状态机负责感知与控制，大模型负责解释与个性化——飞行安全不交给大模型</p>
+  </div>
+  <div class="cap-grid">
+    <div class="cap">
+      <div class="ic">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+          <path d="M3 12h4m10 0h4M12 3v4m0 10v4" stroke-linecap="round"/>
+          <rect x="7" y="7" width="10" height="10" rx="2"/>
+          <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/>
+        </svg>
+      </div>
+      <h3>3D 智能避障</h3>
+      <span class="tag">高度感知 · 分级处理</span>
+      <p>突破传统纯水平绕行：无人机飞得比障碍物高（+15m 安全余量）则垂直越顶优先，不够高才水平绕行；障碍物按“必须绕行 / 可飞越”分级，安全与作业覆盖效率兼得。</p>
+    </div>
+    <div class="cap">
+      <div class="ic">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+          <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/>
+          <path d="M12 5v2m0 10v2M5 12h2m10 0h2" stroke-linecap="round"/>
+          <circle cx="6" cy="6" r="1.6"/><circle cx="18" cy="6" r="1.6"/>
+          <circle cx="6" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/>
+        </svg>
+      </div>
+      <h3>蜂群多机协同</h3>
+      <span class="tag">母机选举 · 失联补位</span>
+      <p>任务自动分区，母机动态选举（电量 &gt; 定位精度 &gt; 通信距离 &gt; 集群中心度加权），失联就近补位、多级树形指挥，单机失效不崩盘、集群持续完成任务。</p>
+    </div>
+    <div class="cap">
+      <div class="ic">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+          <path d="M4 19 12 5l8 14" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M4 19h16" stroke-linecap="round"/>
+          <circle cx="12" cy="14" r="1.4" fill="currentColor" stroke="none"/>
+        </svg>
+      </div>
+      <h3>全链路兜底调度</h3>
+      <span class="tag">L1 → L2 → L3 主动兜底</span>
+      <p>L1 认知跳频（频谱感知→跳频决策→链路自愈）；L2 多链路冗余（4G/5G→专用频段→5G-A 通感一体→北斗短报文）；L3 机载 AI 智能接管，断链瞬间三要素研判、自主决策。</p>
+    </div>
+    <div class="cap">
+      <div class="ic">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+          <path d="M12 3 5 6v5c0 4.5 3 7.8 7 9.5 4-1.7 7-5 7-9.5V6l-7-3z" stroke-linejoin="round"/>
+          <path d="m9 12 2.2 2.2L15.5 10" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h3>AnyDrone 统一接入</h3>
+      <span class="tag">独立于硬件 · 开放底座</span>
+      <p>向上对接空天地多源时空数据，向下统一接入多品牌机型，多品牌机队一套系统统一管控；开放 API，做无人机操控的“系统底座”，不跟硬件厂商竞争。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 系统架构 ===== -->
+<section id="arch">
+  <div class="sec-head">
+    <span class="sec-index">03 / 系统架构</span>
+    <h2 class="sec-title">三层解耦 · 端到端可独立部署</h2>
+    <p class="sec-desc">感知 — 决策 — 交互，全链路数据流闭环</p>
+  </div>
+  <div class="arch">
+    <div class="arch-layer">
+      <div class="lvl">LAYER 01 · 感知</div>
+      <h3>数字孪生 + 多源时空数据接入</h3>
+      <ul>
+        <li>卫星 / 遥感影像 · 地形高程</li>
+        <li>无人机实时遥测（位置/高度/速度/电量/链路质量）</li>
+        <li>时空网格化标准化表达，构建“时空孪生体”</li>
+        <li>每个对象挂载时间-空间-属性，支持全场景动态注入</li>
+      </ul>
+    </div>
+    <div class="arch-layer">
+      <div class="lvl">LAYER 02 · 决策</div>
+      <h3>智能体核心 · 自研算法 + AI</h3>
+      <ul>
+        <li>3D 智能避障：垂直越顶优先 + 水平绕行为辅</li>
+        <li>蜂群协同：自动分区 · 母机选举 · 失联补位</li>
+        <li>全链路兜底 L1→L2→L3 与机载 AI 三要素研判</li>
+        <li>大模型负责解释与个性化，控制交给确定性引擎</li>
+      </ul>
+    </div>
+    <div class="arch-layer">
+      <div class="lvl">LAYER 03 · 交互</div>
+      <h3>工业级三维管控台</h3>
+      <ul>
+        <li>Vue3 + Three.js 数字孪生三维管控</li>
+        <li>六场景实时切换 · 多模态 HUD</li>
+        <li>AI 决策链可视化 · 接管日志复盘</li>
+        <li>一键紧急处置</li>
+      </ul>
+    </div>
+  </div>
+  <div class="arch-flow">感知层 <span>→</span> 处理决策层 <span>→</span> 交互交付层</div>
+</section>
+
+<!-- ===== 验证数据 ===== -->
+<section id="data">
+  <div class="sec-head">
+    <span class="sec-index">04 / 验证数据</span>
+    <h2 class="sec-title">数字孪生仿真 · 全量验证</h2>
+    <p class="sec-desc">Phase 0 数字孪生仿真验证口径（设计目标标注，不谎称真机实测）</p>
+  </div>
+  <div class="data-grid">
+    <div class="data-cell"><div class="k">3D 避障零碰撞率</div><div class="v">6/6 场景</div><div class="note">六大场景全量仿真通过</div></div>
+    <div class="data-cell"><div class="k">多机协同任务分配</div><div class="v">100%</div><div class="note">分配正确率 · 实时完成</div></div>
+    <div class="data-cell"><div class="k">航线覆盖密度</div><div class="v">达标</div><div class="note">河道全覆盖 · 农田无漏喷 · 湖面无死角</div></div>
+    <div class="data-cell"><div class="k">链路切换（设计目标）</div><div class="v">&lt;500ms</div><div class="note">跳频 &lt;200ms · 主备切换 &lt;500ms · 断链 0 延迟机载激活</div></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div>PHOENIX SWARM · PERCEPTION-DECISION INTEGRATED UAV AGENT SYSTEM</div>
+  <div class="foot-zh">朝凤（Phoenix Swarm）—— 面向低空经济的感知-决策一体化多无人机 AI 智能体系统 · 数字孪生仿真演示</div>
+</footer>
+
+<script>
+(function(){
+  'use strict';
+  var scenes = [
+    {src:'assets/01_farm.mp4', tag:'SCENE 01 · AGRICULTURE', title:'农业植保 · 多机分区并行', sub:'大面积农田，多机分区并行作业，农事作业效率翻番；单机覆盖无遗漏，作业全程可视化。', meta:'协同模式：分区并行', eff:'多机并作 · 效率翻番'},
+    {src:'assets/02_river.mp4', tag:'SCENE 02 · RIVER PATROL', title:'河道巡检 · 全程无死角', sub:'长距离河道巡检，多机航带并扫，全程无死角覆盖；异常自动识别并生成巡检小结。', meta:'协同模式：航带并扫', eff:'长距离全覆盖 · 无死角'},
+    {src:'assets/03_survey.mp4', tag:'SCENE 03 · 3D SURVEY', title:'地形测绘 · 准确效率安全', sub:'三维地形测绘，多机多点直达布设航带，精度、效率与安全三者兼顾。', meta:'协同模式：多点直达', eff:'三维测绘 · 高精度'},
+    {src:'assets/04_logi.mp4', tag:'SCENE 04 · LOGISTICS', title:'乡村物流 · 多日达变小时达', sub:'乡村物流配送，多机并行投放，多日达可升级为小时达，全流程可审计。', meta:'协同模式：多点投放', eff:'多日达 → 小时达'},
+    {src:'assets/05_rescue.mp4', tag:'SCENE 05 · WATER RESCUE', title:'水域搜救 · 拉网式搜索', sub:'水域搜救，多机拉网式搜索，黄金救援时间全覆盖；机载 AI 三要素研判保障安全。', meta:'协同模式：分层环绕', eff:'黄金救援全覆盖'},
+    {src:'assets/06_fire.mp4', tag:'SCENE 06 · FIRE RESCUE', title:'消防灭火 · 多机协同救援', sub:'高楼裙房火灾，多机协同救援：3D 智能避障垂直越顶、靠近高层建筑水平绕行，安全救援两不误。', meta:'协同模式：协同救援 + 3D避障', eff:'多机协同 · 越顶绕行'}
+  ];
+  var v = document.getElementById('sceneVideo');
+  var idx = 0, playing = true;
+  var elTag = document.getElementById('sceneTag');
+  var elCam = document.getElementById('camTag');
+  var elTitle = document.getElementById('sceneTitle');
+  var elSub = document.getElementById('sceneSub');
+  var elMeta = document.getElementById('sceneMeta');
+  var elTimer = document.getElementById('timerLabel');
+  var btnPlay = document.getElementById('playBtn');
+  var btnReplay = document.getElementById('replayBtn');
+  var btnMute = document.getElementById('muteBtn');
+  var chips = Array.prototype.slice.call(document.querySelectorAll('.scene-chip'));
+  function pad(n){return (n<10?'0':'')+n;}
+  function applyScene(i,keepPlay){
+    idx = i;
+    var s = scenes[i];
+    v.src = s.src;
+    elTag.textContent = s.tag;
+    elTitle.textContent = s.title;
+    elSub.textContent = s.sub;
+    elMeta.innerHTML = '<span>协同模式：<b>'+s.meta.split('：')[1]+'</b></span><span>效率指标：<b>'+s.eff+'</b></span>';
+    chips.forEach(function(c,k){c.classList.toggle('on',k===i);});
+    if(keepPlay){ v.currentTime=0; var p=v.play(); if(p&&p.catch){p.catch(function(){});} }
+  }
+  function setPlay(flag){
+    playing = flag;
+    btnPlay.textContent = playing ? '暂停演示' : '播放演示';
+    if(playing){ v.play().catch(function(){}); } else { v.pause(); }
+  }
+  chips.forEach(function(c,k){
+    c.addEventListener('click',function(){ applyScene(k,playing); });
+  });
+  btnPlay.addEventListener('click',function(){ setPlay(!playing); });
+  btnReplay.addEventListener('click',function(){ v.currentTime=0; v.play().catch(function(){}); setPlay(true); });
+  btnMute.addEventListener('click',function(){
+    v.muted = !v.muted;
+    btnMute.textContent = v.muted ? '声音：关' : '声音：开';
+  });
+  v.addEventListener('timeupdate',function(){
+    var t=v.currentTime,d=v.duration||0;
+    elTimer.textContent = pad(Math.floor(t/60))+':'+pad(Math.floor(t%60))+' / '+pad(Math.floor(d/60))+':'+pad(Math.floor(d%60));
+  });
+  v.addEventListener('ended',function(){ setPlay(false); });
+  document.querySelectorAll('.nav-links a').forEach(function(a){
+    a.addEventListener('click',function(e){
+      var id=a.getAttribute('href');
+      if(id&&id.charAt(0)==='#'){e.preventDefault();var t=document.querySelector(id);if(t){t.scrollIntoView({behavior:'smooth'});}}
+    });
+  });
+})();
+</script>
+</body>
+</html>
